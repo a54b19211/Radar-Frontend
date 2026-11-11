@@ -1,0 +1,14 @@
+[Unit]
+Description=BioRadar collection console
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/zk_admin/zk_project/bioradar-console
+ExecStart=/usr/bin/node --env-file-if-exists=.env server/index.mjs
+Environment=NODE_ENV=production
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

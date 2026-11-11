@@ -1,0 +1,15 @@
+[Unit]
+Description=BioRadar console read-only Fabric API tunnel
+After=network.target
+
+[Service]
+Type=simple
+Environment=SSH_ASKPASS=/home/zk_admin/.config/bioradar-console/askpass.sh
+Environment=SSH_ASKPASS_REQUIRE=force
+Environment=DISPLAY=:0
+ExecStart=/usr/bin/ssh -NT -o StrictHostKeyChecking=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o NumberOfPasswordPrompts=1 -o PreferredAuthentications=password -L 127.0.0.1:18512:127.0.0.1:18511 zk_test@172.16.10.3
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
