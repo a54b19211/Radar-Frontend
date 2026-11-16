@@ -1,99 +1,120 @@
-# BioRadar 数据采集观测台
+# BioRadar 数据工作台
 
-独立前端项目。部署在 4022（zkserver），通过只读 API 连接 zktest 的现役 Fabric；不依赖后端源码、不切换后端分支。
+独立的 React 前端和 Node.js 只读 API 适配服务，用来观察 Fabric 的采集、清洗和知识交付。
 
-访问地址：**http://100.125.40.22:3234/**。同机房也可访问 **http://172.16.10.1:3234/**。
+## 本次维护交接（2026-11-16）
 
-## 已实现
+- **维护源码目录**：zktest 的 `/home/zk_test/zk_projects/bioradar-console`。
+- **当前源码**：4022 项目工作目录中的 v0.2.0，包含此前未提交的新页面。本次在交接副本中提交保存；原项目文件和现役服务未改动。
+- **线上页面**：`http://100.125.40.22:3234/` 目前仍提供较早的 v0.1 静态构建。下面的功能说明描述本目录 v0.2 源码，不表示线上页面已经全部更新。
+- **历史代码**：保留原 Git 历史，`baafc54` 是原有 v0.1 源码提交；交接副本继续使用 `codex/collection-console` 分支，没有配置远端。
+- **交付包**：`/home/zk_test/zk_projects/bioradar-console-delivery-20261116/`，内有带 Git 历史的源码压缩包、当前线上静态页面备份、清单和 SHA-256 校验文件。
+- **运行环境**：Node.js **20.20.2**（与源主机一致，版本记录在 `.nvmrc`）。zktest 当前系统 Node.js 为 18，开发前需使用符合版本要求的 Node.js；本次未替换系统 Node，也未在 zktest 启动前端服务。
+- **凭据**：源码包不含 `.env`、读令牌、SSH 密码或私钥。复制 `.env.example` 后填入本机配置；History 读令牌放在项目外的私有文件，用 `FABRIC_HISTORY_TOKEN_FILE` 指定。该令牌需由现有服务管理员配置。
+- **验收状态**：v0.2 是待发布的维护起点，尚未完成整套浏览器交互验收。本次打包做源码构建和交付校验，不将其标记为已上线版本。
 
-- 采集总览：业务库资料总数、可观测来源、抽取状态和知识库同步状态。
-- 可缩放、平移、点击下钻的流程画布；数字过渡、页面进出动画、来源占比动画与连线动效演示。
-- 来源目录、分类与名称筛选、来源资料列表。
-- 持续采集监测：运行/等待/失败/过期状态，最近检查、下一轮计划、查询范围、批次记录及错误。
-- 资料分页、来源与状态过滤、正文详情；标题搜索明确限定当前页。
-- 实际 API 快照导出；断线时标明问题并保留上次成功数据。
-- 手机布局、键盘关闭/焦点约束、系统减少动态效果支持。
+现役部署仍在 4022（zkserver），通过只读 API 连接 zktest Fabric。zktest 本机开发直接连接 `127.0.0.1:18511`，无需沿用 4022 的 SSH 隧道。
 
-清洗细节与雷达调查流程保留入口，尚未接入。已有的“结构化抽取”统计不冒充清洗节点追踪。
+访问地址：**http://100.125.40.22:3234/**；同机房地址：**http://172.16.10.1:3234/**。浏览器代理应对服务器地址直连，Tailscale 保持连接。
+
+## 页面与功能
+
+- **采集总览**：业务库存、监测状态、信源规模与可点击的数据路径；默认开启雷达背景和状态动效。
+- **任务流水线**：检查时间、最近成功、下一轮计划、最近保留的批次计数，以及当前 run 的版本列表入口。
+- **信源中心**：分类与名称筛选、来源占比、监测与发布心跳、业务资料和原文对照入口。
+- **原文与清洗**：按来源检索、游标翻页、精确打开原文版本；左右查看原始响应、清洗正文、facts、JSON 和来源解析记录。
+- **字段追溯**：读取服务提供的 JSON Pointer，定位真实原文位置；展示原始值与结构化值，不编造转换规则。
+- **业务资料库**：历史业务库存、抽取统计、服务端状态/来源筛选和分页、原文下载。标题搜索明确限定当前页。
+- **知识交付**：Fabric 的 WeKnora 同步统计与来源发布心跳。
+- 深浅主题、动效开关、手机布局、断线保留快照、原文/结构化结果/当前快照导出。
+
+## 数据口径
+
+1. 业务库存与独立 History 原文版本库分别展示，不相加冒充去重总量。来源占比分母仅为业务库存。
+2. History 查询固定 `is_demo=false`；列表按来源记录编号排序，不宣称是最新到达。
+3. 首次查询由服务端生成带时区的 cutoff，游标翻页沿用同一 cutoff、来源、检索词与批次条件。
+4. 原文、clean_text、facts 和字段出处按 source_id、source_record_id、version_id 精确对应。旧版本不会被当前版本替换。
+5. 现役 API 没有通用的逐步清洗产物和执行耗时，因此页面展示已有产物，不伪造去噪/规范化/校验的运行回放。
+6. WHO 的原始响应可能是包含 HTML 正文的 JSON；预览明确标为“响应中的 HTML 正文”，不冒充完整网页快照。HTML 在隔离 iframe 中预览，移除主动内容并禁止外部资源。
+7. 最近批次计数来自 last_coverage，可能早于最近一次失败。当前 run 只使用 active_run_id 关联；结束后没有历史批次编号时保持未知。partial + record_budget 是有界完成，不是采集失败。
+8. 运行流光表示状态与逻辑路径，不是逐条数据事件；断线、快照过期或无活跃采集时停流。背景扫描仅为视觉效果，不代表抓取事件。
+9. WeKnora“已同步”是 Fabric 的状态记录。远端解析/向量索引回执需要额外权限，当前只读连接没有读取它们。
+10. 页面每 15 秒检查更新；隐藏时停止轮询。服务端汇总缓存 60 秒并合并并发请求。
 
 ## 开发
 
+先确认 `node --version` 为 v20.20.2 或符合 `package.json` 的版本要求。已安装 nvm 的开发环境可以执行 `nvm install && nvm use`。
+
 ```bash
+cd /home/zk_test/zk_projects/bioradar-console
 npm ci
 cp .env.example .env
 npm run build
 npm start
 ```
 
-开发前端可运行 `npm run dev`，Vite 的 `/api` 转发至本项目 3234 端口。需要先启动上述 API 适配服务。
+上述配置默认只监听 zktest 的 `127.0.0.1:3234`；需要对外提供页面时再明确设置 `HOST`。未配置 History 令牌时，原文版本相关功能不可用，业务库存等可用范围由上游权限决定。
 
-技术：React、TypeScript、Vite、React Flow、Motion、Lucide；字体随构建产物提供，不依赖运行时外网字体服务。
+开发前端：`npm run dev`。Vite 将 `/api` 转发至本项目 3234 端口，需同时运行适配服务。
 
-主要文件：
+技术：React、TypeScript、Vite、Motion、Lucide；字体随构建提供，无运行时外网字体依赖。流程使用原生 SVG 与 DOM，状态驱动动画。
 
-| 文件                     | 职责                              |
-| ------------------------ | --------------------------------- |
-| `src/App.tsx`            | 工作台、总览、来源目录与活动页    |
-| `src/FlowCanvas.tsx`     | 流程画布与动效                    |
-| `src/DocumentsTable.tsx` | 服务端分页、筛选、资料入口        |
-| `src/DetailDrawer.tsx`   | 来源、任务、流程和资料详情        |
-| `src/api.ts`             | 自动刷新、断线状态                |
-| `src/types.ts`           | 前端使用的数据结构                |
-| `server/index.mjs`       | 只读 API 适配、缓存、静态文件服务 |
+| 文件                   | 职责                                     |
+| ---------------------- | ---------------------------------------- |
+| src/Console.tsx        | 页面导航、总览、业务库存与公共对话框     |
+| src/PipelineScene.tsx  | 来源路径、状态动效与来源速览             |
+| src/Operations.tsx     | 任务、信源与知识交付页面                 |
+| src/Records.tsx        | History 分页、原文与清洗对照、字段定位   |
+| src/content.ts         | JSON Pointer、JSON 行定位、HTML 隔离预览 |
+| src/DocumentsTable.tsx | 历史业务资料分页与过滤                   |
+| src/api.ts             | 自动更新、连接状态与请求处理             |
+| src/console.css        | 深浅主题、响应布局与动效                 |
+| server/index.mjs       | 只读 API 适配、缓存与静态文件服务        |
 
-后端重构完成后，主要修改 `server/index.mjs` 中的适配，不需要让页面直接依赖各版本后端的返回字段。
+## 上游只读接口
 
-## 当前部署
+- `/api/documents`、`/sites`、`/{uuid}`：业务资料库存和详情。
+- `/api/extraction/stats`、`/api/weknora/stats`：抽取与同步统计。
+- `/api/history/sources`、`/source-health`：允许读取的来源、持续监测与心跳。
+- `/api/history/records`：当前版本列表和来源内检索。
+- `/api/history/versions/{version_id}`：精确版本与原始/处理产物。
+- `/api/history/runs/{run_id}`：已知采集批次及关联版本。
+
+浏览器只访问本项目前缀 `/api`。服务端固定上游地址及允许的 GET 接口；History 凭据不会传到浏览器。没有采集启动、暂停、重试、清空等写操作。
+
+## 4022 现役部署参考
 
 - 项目：`/home/zk_admin/zk_project/bioradar-console`
-- 本地开发分支：`codex/collection-console`
+- 分支：`codex/collection-console`
 - 前端服务：`bioradar-console.service`，端口 3234。
-- 连接通道：`bioradar-console-tunnel.service`，仅在 4022 回环地址 18512 转发至 zktest 回环地址 18511。
-- 配置：项目 `.env`；SSH 凭据与 History 只读凭据在 `~/.config/bioradar-console/`，目录权限 0700、凭据文件 0600，不提交 Git、不发送到浏览器。
+- 隧道：`bioradar-console-tunnel.service`，4022 回环 18512 → zktest 回环 18511。
+- `.env` 与 `~/.config/bioradar-console/` 内凭据均不入 Git；凭据权限为 0600。
+- 用户服务已启用开机运行，已启用 linger。
+
+`deploy/` 里保留的是这套 4022 服务配置，其中有源服务器的绝对路径。迁到 zktest 部署时需调整工作目录和 Node 路径；zktest 本机连接 Fabric 不需要安装隧道服务。本次交接没有安装或修改这些服务。
 
 ```bash
 systemctl --user status bioradar-console.service bioradar-console-tunnel.service
 systemctl --user restart bioradar-console.service
 ```
 
-前端服务和连接通道已配置开机随用户服务启动。不要重启或改动 Fabric、爬虫、数据库等现役服务来更新这个前端。
+可以用 `CONSOLE_DIST_DIR=dist-next PORT=3235 HOST=127.0.0.1` 在回环地址预验收新构建。上线替换构建并仅重启本项目前端服务；不需要改动 Fabric、数据库、采集或其他现役服务。
 
-## API 与数据口径
-
-浏览器只访问本项目前缀 `/api`，服务端使用明确声明的 GET 接口：
-
-| 上游接口                                 | 用途                               |
-| ---------------------------------------- | ---------------------------------- |
-| `/api/documents`、`/api/documents/sites` | 业务库库存、来源数、来源计数和分页 |
-| `/api/documents/{uuid}`                  | 资料详情                           |
-| `/api/extraction/stats`                  | 抽取状态统计                       |
-| `/api/weknora/stats`                     | Fabric 记录的同步状态              |
-| `/api/history/sources`                   | 已获准读取的原生采集来源           |
-| `/api/history/source-health`             | 持续监测状态、时间、最近批次与错误 |
-
-1. **资料总量**仅为业务资料库内未删除条目，不包含独立 History 库。两套库不相加冒充去重总量。
-2. **来源占比**的分母是业务库资料总量。History 来源数量没有现成统计时显示“未提供”，不以 `published_seq` 水位冒充记录数量。
-3. **任务批次计数**来自最近保留的 `last_coverage` 回执，可能早于最近一次失败检查。详情显示 `last_page_at`。这不是整个任务的累计量，也不是全源覆盖率。
-4. **任务状态**取持续监测 API；过期状态单独呈现，不把发表器心跳当爬虫正在运行。
-5. **流程连线**表示逻辑流程，没有逐记录事件时不冒充真实执行轨迹。连线演示需显式开启，页面会标注“动效演示，不启动采集任务”；真实运行任务有独立状态动效。
-6. “已同步”只是 Fabric 返回的同步状态，不代表检索质量已经验收。
-7. 页面每 15 秒检查更新，隐藏页面暂停轮询；服务端汇总缓存 60 秒并合并并发请求，降低百万条库存统计压力。
-8. 当前 URL、每分钟采集速率、History 逐条资料浏览、清洗节点日志与雷达分析尚未接入。没有这些字段时不伪造数字、时间曲线或完成百分比。
-
-接口只读，没有采集启动、暂停、重试或清空功能。适配服务只返回页面需要的资料字段，不透传任意上游地址。
+本次更新前的 Git bundle 与清单位于忽略提交的 `artifacts/releases/20261112-before-ui/`。
 
 ## 检查
 
 ```bash
 npm run build
-BROWSER_PATH=/path/to/chrome npm run smoke
+BASE_URL=http://127.0.0.1:3234 BROWSER_PATH=/path/to/chrome npm run smoke
 ```
 
-`scripts/smoke.mjs` 运行一次实际浏览器检查：桌面布局、动效开关、来源筛选与详情、资料详情及分页、任务详情、断线保留、手机导航。只在浏览器内阻断一次请求验证断线提示，不修改真实服务。截图及结果在忽略提交的 `artifacts/` 中。
+只进行一次有针对性的浏览器检查：真实资料查询与字段出处、正文/JSON/HTML、其他页面、主题、断线保留、手机布局。HTML 隔离检查只替换测试浏览器的响应，不写入任何真实数据。结果与截图存于忽略提交的 artifacts 目录。
 
-## 产品参考
+## 设计参考
 
-- [Dify Run History](https://docs.dify.ai/en/cloud/use-dify/debug/history-and-logs)：从整体执行进入节点详情。
-- [Airbyte Connection Timeline](https://docs.airbyte.com/platform/cloud/managing-airbyte-cloud/review-connection-timeline)：分开呈现任务状态、接收数量和运行事件。
+- [Dify 节点追踪](https://docs.dify.ai/en/cloud/use-dify/monitor/logs)
+- [Airbyte 连接时间线](https://docs.airbyte.com/platform/cloud/managing-airbyte-cloud/review-connection-timeline)
+- [Foundry 数据连接](https://www.palantir.com/docs/foundry/data-connection/overview)
 
-采用其交互组织方式；本项目使用独立视觉设计，不复制原产品界面。
+使用独立的视觉设计和真实接口，不复制设计稿中的模拟数据。

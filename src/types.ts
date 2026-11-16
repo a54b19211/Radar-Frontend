@@ -9,6 +9,7 @@ export type Source = {
   count: number | null;
   extraction: Record<string, number>;
   historyOnly?: boolean;
+  historyAvailable?: boolean;
   health?: {
     observedAt: string;
     collection: { state: string; last_check_at: string | null };
@@ -59,6 +60,7 @@ export type Task = {
   sameVersions?: number | null;
   requests?: number | null;
   stopReason?: string;
+  rawStatus?: string;
 };
 export type Snapshot = {
   observedAt: string;
@@ -83,6 +85,7 @@ export type Snapshot = {
     collectionRate: boolean;
     cleaning: boolean;
     radar: boolean;
+    historyRecords?: boolean;
   };
   warnings: string[];
   stale: boolean;
@@ -93,4 +96,42 @@ export type Selection =
   | { type: "document"; id: string }
   | { type: "task"; id: string }
   | { type: "about" };
-export type View = "overview" | "sources" | "activity" | "documents";
+export type View =
+  | "overview"
+  | "sources"
+  | "activity"
+  | "documents"
+  | "records"
+  | "record"
+  | "delivery";
+
+export type FieldLocator = { json_pointer?: string; [key: string]: unknown };
+export type HistoryRecord = {
+  source_id: string;
+  source_record_id: string;
+  version_id: string;
+  title: string;
+  record_kind: string;
+  source_url?: string;
+  raw_content?: string;
+  raw_media_type?: string;
+  raw_sha256?: string;
+  clean_text?: string;
+  parser_version?: string;
+  facts?: Record<string, unknown>;
+  field_locators?: Record<string, FieldLocator>;
+  source_published_at?: string;
+  source_updated_at?: string;
+  first_seen_at?: string;
+  received_at?: string;
+  event_time?: string;
+  mapping_review?: unknown;
+  availability_proof?: unknown;
+  published_seq?: number;
+};
+export type HistoryPage = {
+  items: HistoryRecord[];
+  next_cursor: string | null;
+  cutoff: string;
+  coverage?: Record<string, unknown>;
+};

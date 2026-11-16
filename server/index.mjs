@@ -5,6 +5,10 @@ import { readFileSync } from "node:fs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const app = express();
+const distDirectory = path.resolve(
+  root,
+  process.env.CONSOLE_DIST_DIR || "dist",
+);
 app.disable("x-powered-by");
 const base = (process.env.FABRIC_URL || "http://127.0.0.1:8100").replace(
   /\/$/,
@@ -281,6 +285,7 @@ async function collect() {
       }),
       count: counts[id] ?? null,
       historyOnly: !ids.includes(id),
+      historyAvailable: telemetry.sources.some((s) => s.source_id === id),
       health: telemetry.sources.find((s) => s.source_id === id)?.health || null,
       extraction: Object.fromEntries(
         Object.entries(stage?.by_site || {}).map(([state, values]) => [
@@ -307,8 +312,10 @@ async function collect() {
     capabilities: {
       collectionTasks: Boolean(collection?.tasks),
       collectionRate: Boolean(collection?.history),
-      cleaning: false,
+      cleaning: Boolean(historyToken),
+      cleaningStageEvents: false,
       radar: false,
+      historyRecords: Boolean(historyToken),
     },
     warnings,
     stale: false,
@@ -342,12 +349,10 @@ app.get("/api/overview", async (_req, res) => {
         warnings: [...snapshot.warnings, "connection"],
       });
     else
-      res
-        .status(502)
-        .json({
-          error: "暂时无法连接资料服务，请稍后重试。",
-          code: "upstream_unavailable",
-        });
+      res.status(502).json({
+        error: "暂时无法连接资料服务，请稍后重试。",
+        code: "upstream_unavailable",
+      });
   }
 });
 
@@ -395,6 +400,7 @@ app.get("/api/documents/:uuid", async (req, res) => {
       "clean_content",
       "summary",
       "attachments",
+      "extra",
     ];
     res.json(
       Object.fromEntries(
@@ -405,15 +411,187 @@ app.get("/api/documents/:uuid", async (req, res) => {
     res.status(502).json({ error: "这条资料的详情暂时不可用。" });
   }
 });
+
+const historyFields = [
+  "source_id",
+  "source_record_id",
+  "version_id",
+  "title",
+  "record_kind",
+  "source_url",
+  "raw_content",
+  "raw_media_type",
+  "raw_sha256",
+  "clean_text",
+  "parser_version",
+  "facts",
+  "field_locators",
+  "event_time",
+  "source_published_at",
+  "source_updated_at",
+  "first_seen_at",
+  "received_at",
+  "mapping_review",
+  "availability_proof",
+  "published_seq",
+];
+function selectRecord(record, detail = false) {
+  const keys = detail
+    ? historyFields
+    : historyFields.filter(
+        (key) =>
+          ![
+            "raw_content",
+            "clean_text",
+            "facts",
+            "field_locators",
+            "availability_proof",
+            "mapping_review",
+          ].includes(key),
+      );
+  return Object.fromEntries(
+    keys
+      .filter((key) => record[key] !== undefined)
+      .map((key) => [key, record[key]]),
+  );
+}
+function historyParams(query) {
+  const source = typeof query.source === "string" ? query.source : "";
+  if (!/^[a-zA-Z0-9_-]{1,80}$/.test(source))
+    throw new Error("请选择有效的数据来源");
+  const cutoff =
+    typeof query.cutoff === "string"
+      ? query.cutoff
+      : new Date(Date.now() - 5000).toISOString();
+  if (!Number.isFinite(Date.parse(cutoff))) throw new Error("查询截止时间无效");
+  return new URLSearchParams({
+    source_id: source,
+    is_demo: "false",
+    mode: "current",
+    cutoff,
+  });
+}
+app.get("/api/history/records", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  if (!historyToken)
+    return res.status(503).json({ error: "持续采集资料尚未配置只读连接。" });
+  let params;
+  try {
+    params = historyParams(req.query);
+    params.set(
+      "limit",
+      String(Math.min(30, Math.max(1, Number(req.query.limit) || 12))),
+    );
+    if (typeof req.query.cursor === "string")
+      params.set("cursor", req.query.cursor);
+    if (
+      typeof req.query.run === "string" &&
+      /^[a-zA-Z0-9-]{1,100}$/.test(req.query.run)
+    )
+      params.set("run_id", req.query.run);
+    if (typeof req.query.term === "string" && req.query.term.trim()) {
+      const term = req.query.term.trim();
+      if (term.length < 2 || term.length > 120)
+        throw new Error("检索词需要 2–120 个字符");
+      params.append("terms", term);
+    }
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+  try {
+    const result = await read(`${base}/api/history/records?${params}`);
+    res.json({
+      items: (result.items || []).map((r) => selectRecord(r)),
+      next_cursor: result.next_cursor || null,
+      coverage: result.coverage,
+      cutoff: params.get("cutoff"),
+    });
+  } catch {
+    res.status(502).json({ error: "采集资料暂时无法读取，请刷新重试。" });
+  }
+});
+app.get("/api/history/versions/:version", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  if (!/^[a-zA-Z0-9-]{1,128}$/.test(req.params.version))
+    return res.status(400).json({ error: "原文版本无效。" });
+  let params;
+  try {
+    params = historyParams(req.query);
+    if (
+      typeof req.query.record !== "string" ||
+      !req.query.record ||
+      req.query.record.length > 512
+    )
+      throw new Error("缺少有效的来源记录编号");
+    params.set("source_record_id", req.query.record);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+  try {
+    const result = await read(
+      `${base}/api/history/versions/${encodeURIComponent(req.params.version)}?${params}`,
+    );
+    res.json({
+      record: selectRecord(result, true),
+      cutoff: params.get("cutoff"),
+    });
+  } catch {
+    res
+      .status(502)
+      .json({ error: "这个原文版本暂时无法读取，请返回列表重新选择。" });
+  }
+});
+app.get("/api/history/runs/:id", async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  if (!/^[a-zA-Z0-9-]{1,100}$/.test(req.params.id))
+    return res.status(400).json({ error: "批次编号无效。" });
+  try {
+    const run = await read(
+      `${base}/api/history/runs/${encodeURIComponent(req.params.id)}`,
+    );
+    const keys = [
+      "id",
+      "source_id",
+      "state",
+      "created_at",
+      "completed_at",
+      "version_ids",
+      "error",
+      "scope_description",
+    ];
+    const value = Object.fromEntries(
+      keys
+        .filter((key) => run[key] !== undefined)
+        .map((key) => [key, run[key]]),
+    );
+    value.coverage = Object.fromEntries(
+      [
+        "mode",
+        "bytes",
+        "complete",
+        "requests",
+        "stop_reason",
+        "source_total",
+        "adopted_count",
+        "new_version_count",
+        "same_version_count",
+        "upstream_pagination_exhausted",
+      ]
+        .filter((key) => run.coverage?.[key] !== undefined)
+        .map((key) => [key, run.coverage[key]]),
+    );
+    res.json(value);
+  } catch {
+    res.status(502).json({ error: "当前批次详情暂时不可用。" });
+  }
+});
 app.use("/api", (_req, res) =>
   res.status(404).json({ error: "此观测台仅提供已声明的只读接口。" }),
 );
-app.use(
-  express.static(path.join(root, "dist"), { index: false, maxAge: "1h" }),
-);
+app.use(express.static(distDirectory, { index: false, maxAge: "1h" }));
 app.get("/{*path}", (_req, res) => {
   res.set("Cache-Control", "no-cache");
-  res.sendFile(path.join(root, "dist/index.html"));
+  res.sendFile(path.join(distDirectory, "index.html"));
 });
 
 const port = Number(process.env.PORT || 3234);

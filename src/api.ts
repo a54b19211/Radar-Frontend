@@ -5,8 +5,13 @@ export async function getJson<T>(
   path: string,
   signal?: AbortSignal,
 ): Promise<T> {
-  const response = await fetch(path, { signal });
-  const body = await response.json();
+  const response = await fetch(path, { signal }).catch((error) => {
+    if (signal?.aborted) throw error;
+    throw new Error("暂时无法连接数据服务，请稍后重试。");
+  });
+  const body = await response.json().catch(() => {
+    throw new Error("数据服务返回了无效响应，请检查连接后重试。");
+  });
   if (!response.ok) throw new Error(body.error || "请求暂时没有完成");
   return body as T;
 }

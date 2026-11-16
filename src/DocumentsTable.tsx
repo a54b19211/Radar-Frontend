@@ -17,15 +17,17 @@ export default function DocumentsTable({
   onOpen,
   sourceId = "",
   compact = false,
+  initialState = "",
 }: {
   sources: Source[];
   onOpen: (d: Document) => void;
   sourceId?: string;
   compact?: boolean;
+  initialState?: string;
 }) {
   const [page, setPage] = useState(1);
   const [source, setSource] = useState(sourceId);
-  const [state, setState] = useState("");
+  const [state, setState] = useState(initialState);
   const [query, setQuery] = useState("");
   const [data, setData] = useState<{ total: number; items: Document[] } | null>(
     null,
@@ -62,7 +64,8 @@ export default function DocumentsTable({
   }, [page, pageSize, source, state]);
   const items =
     data?.items.filter(
-      (d) => !query || d.title.toLowerCase().includes(query.toLowerCase()),
+      (d) =>
+        !query || (d.title || "").toLowerCase().includes(query.toLowerCase()),
     ) || [];
   return (
     <div className={`documents-component ${compact ? "compact-docs" : ""}`}>
@@ -103,13 +106,18 @@ export default function DocumentsTable({
               }}
             >
               <option value="">全部状态</option>
-              {["pending", "queued", "processing", "done", "failed"].map(
-                (s) => (
-                  <option key={s} value={s}>
-                    {stateLabel[s]}
-                  </option>
-                ),
-              )}
+              {[
+                "pending",
+                "queued",
+                "processing",
+                "done",
+                "failed",
+                "no_entity",
+              ].map((s) => (
+                <option key={s} value={s}>
+                  {stateLabel[s]}
+                </option>
+              ))}
             </select>
           </div>
         </div>

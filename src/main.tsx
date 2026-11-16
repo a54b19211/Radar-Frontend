@@ -1,10 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { MotionConfig } from "motion/react";
-import App from "./App";
+import App from "./Console";
 import "@fontsource-variable/manrope";
 import "@fontsource-variable/dm-sans";
-import "./styles.css";
+import "./console.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
