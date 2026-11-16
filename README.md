@@ -1,19 +1,20 @@
 # BioRadar 数据工作台
+n> 这是统一前端的原型（采集工作台 v0.2）。第 3 阶段按总 PRD 重写；下文的部署说明是旧环境的，仅供参考。
 
 独立的 React 前端和 Node.js 只读 API 适配服务，用来观察 Fabric 的采集、清洗和知识交付。
 
 ## 本次维护交接（2026-11-16）
 
-- **维护源码目录**：zktest 的 `/home/zk_test/zk_projects/bioradar-console`。
+- **维护源码目录**：新开发服务器的 `/data/projects/BioRadar-frontend`（GitHub a54b19211/Radar-Frontend）。
 - **当前源码**：4022 项目工作目录中的 v0.2.0，包含此前未提交的新页面。本次在交接副本中提交保存；原项目文件和现役服务未改动。
 - **线上页面**：`http://100.125.40.22:3234/` 目前仍提供较早的 v0.1 静态构建。下面的功能说明描述本目录 v0.2 源码，不表示线上页面已经全部更新。
 - **历史代码**：保留原 Git 历史，`baafc54` 是原有 v0.1 源码提交；交接副本继续使用 `codex/collection-console` 分支，没有配置远端。
 - **交付包**：`/home/zk_test/zk_projects/bioradar-console-delivery-20261116/`，内有带 Git 历史的源码压缩包、当前线上静态页面备份、清单和 SHA-256 校验文件。
-- **运行环境**：Node.js **20.20.2**（与源主机一致，版本记录在 `.nvmrc`）。zktest 当前系统 Node.js 为 18，开发前需使用符合版本要求的 Node.js；本次未替换系统 Node，也未在 zktest 启动前端服务。
+- **运行环境**：Node.js **20.20.2**（与源主机一致，版本记录在 `.nvmrc`）。旧开发服务器 当前系统 Node.js 为 18，开发前需使用符合版本要求的 Node.js；本次未替换系统 Node，也未在 旧开发服务器 启动前端服务。
 - **凭据**：源码包不含 `.env`、读令牌、SSH 密码或私钥。复制 `.env.example` 后填入本机配置；History 读令牌放在项目外的私有文件，用 `FABRIC_HISTORY_TOKEN_FILE` 指定。该令牌需由现有服务管理员配置。
 - **验收状态**：v0.2 是待发布的维护起点，尚未完成整套浏览器交互验收。本次打包做源码构建和交付校验，不将其标记为已上线版本。
 
-现役部署仍在 4022（zkserver），通过只读 API 连接 zktest Fabric。zktest 本机开发直接连接 `127.0.0.1:18511`，无需沿用 4022 的 SSH 隧道。
+现役部署仍在 4022（zkserver），通过只读 API 连接 旧开发服务器 Fabric。旧开发服务器 本机开发直接连接 `127.0.0.1:18511`，无需沿用 4022 的 SSH 隧道。
 
 访问地址：**http://100.125.40.22:3234/**；同机房地址：**http://172.16.10.1:3234/**。浏览器代理应对服务器地址直连，Tailscale 保持连接。
 
@@ -53,7 +54,7 @@ npm run build
 npm start
 ```
 
-上述配置默认只监听 zktest 的 `127.0.0.1:3234`；需要对外提供页面时再明确设置 `HOST`。未配置 History 令牌时，原文版本相关功能不可用，业务库存等可用范围由上游权限决定。
+上述配置默认只监听 旧开发服务器 的 `127.0.0.1:3234`；需要对外提供页面时再明确设置 `HOST`。未配置 History 令牌时，原文版本相关功能不可用，业务库存等可用范围由上游权限决定。
 
 开发前端：`npm run dev`。Vite 将 `/api` 转发至本项目 3234 端口，需同时运行适配服务。
 
@@ -87,11 +88,11 @@ npm start
 - 项目：`/home/zk_admin/zk_project/bioradar-console`
 - 分支：`codex/collection-console`
 - 前端服务：`bioradar-console.service`，端口 3234。
-- 隧道：`bioradar-console-tunnel.service`，4022 回环 18512 → zktest 回环 18511。
+- 隧道：`bioradar-console-tunnel.service`，4022 回环 18512 → 旧开发服务器 回环 18511。
 - `.env` 与 `~/.config/bioradar-console/` 内凭据均不入 Git；凭据权限为 0600。
 - 用户服务已启用开机运行，已启用 linger。
 
-`deploy/` 里保留的是这套 4022 服务配置，其中有源服务器的绝对路径。迁到 zktest 部署时需调整工作目录和 Node 路径；zktest 本机连接 Fabric 不需要安装隧道服务。本次交接没有安装或修改这些服务。
+`deploy/` 里保留的是这套 4022 服务配置，其中有源服务器的绝对路径。迁到 旧开发服务器 部署时需调整工作目录和 Node 路径；旧开发服务器 本机连接 Fabric 不需要安装隧道服务。本次交接没有安装或修改这些服务。
 
 ```bash
 systemctl --user status bioradar-console.service bioradar-console-tunnel.service

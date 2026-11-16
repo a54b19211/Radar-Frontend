@@ -428,7 +428,7 @@ export default function Console() {
             <div className="connection-hero">
               <RadioTower size={28} />
               <b>{data && !error ? "数据服务已连接" : "等待连接恢复"}</b>
-              <span>4022 前端 · zktest 数据服务</span>
+              <span>4022 前端 · Fabric 数据服务</span>
             </div>
             <dl className="detail-list">
               <div>
