@@ -1,5 +1,6 @@
 # BioRadar 数据工作台
-n> 这是统一前端的原型（采集工作台 v0.2）。第 3 阶段按总 PRD 重写；下文的部署说明是旧环境的，仅供参考。
+
+> 这是统一前端的原型（采集工作台 v0.2）。第 3 阶段按总 PRD 重写；下文的部署说明是旧环境的，仅供参考。
 
 独立的 React 前端和 Node.js 只读 API 适配服务，用来观察 Fabric 的采集、清洗和知识交付。
 
@@ -9,7 +10,6 @@ n> 这是统一前端的原型（采集工作台 v0.2）。第 3 阶段按总 PR
 - **当前源码**：4022 项目工作目录中的 v0.2.0，包含此前未提交的新页面。本次在交接副本中提交保存；原项目文件和现役服务未改动。
 - **线上页面**：`http://100.125.40.22:3234/` 目前仍提供较早的 v0.1 静态构建。下面的功能说明描述本目录 v0.2 源码，不表示线上页面已经全部更新。
 - **历史代码**：保留原 Git 历史，`baafc54` 是原有 v0.1 源码提交；交接副本继续使用 `codex/collection-console` 分支，没有配置远端。
-- **交付包**：`/home/zk_test/zk_projects/bioradar-console-delivery-20261116/`，内有带 Git 历史的源码压缩包、当前线上静态页面备份、清单和 SHA-256 校验文件。
 - **运行环境**：Node.js **20.20.2**（与源主机一致，版本记录在 `.nvmrc`）。旧开发服务器 当前系统 Node.js 为 18，开发前需使用符合版本要求的 Node.js；本次未替换系统 Node，也未在 旧开发服务器 启动前端服务。
 - **凭据**：源码包不含 `.env`、读令牌、SSH 密码或私钥。复制 `.env.example` 后填入本机配置；History 读令牌放在项目外的私有文件，用 `FABRIC_HISTORY_TOKEN_FILE` 指定。该令牌需由现有服务管理员配置。
 - **验收状态**：v0.2 是待发布的维护起点，尚未完成整套浏览器交互验收。本次打包做源码构建和交付校验，不将其标记为已上线版本。
@@ -47,7 +47,7 @@ n> 这是统一前端的原型（采集工作台 v0.2）。第 3 阶段按总 PR
 先确认 `node --version` 为 v20.20.2 或符合 `package.json` 的版本要求。已安装 nvm 的开发环境可以执行 `nvm install && nvm use`。
 
 ```bash
-cd /home/zk_test/zk_projects/bioradar-console
+cd /data/projects/BioRadar-frontend
 npm ci
 cp .env.example .env
 npm run build
